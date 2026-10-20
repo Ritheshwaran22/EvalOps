@@ -30,10 +30,11 @@ from .security import (
 
 logger = logging.getLogger("evalops.api")
 
-# Dev convenience: creates tables if they do not exist; production uses Alembic
-Base.metadata.create_all(bind=engine)
-from .db import ensure_schema_upgrades
-ensure_schema_upgrades(engine)
+# Dev convenience: creates tables if they do not exist; production uses Alembic migrations
+if settings.environment != "production":
+    Base.metadata.create_all(bind=engine)
+    from .db import ensure_schema_upgrades
+    ensure_schema_upgrades(engine)
 
 app = FastAPI(
     title=settings.api_title,
@@ -43,12 +44,12 @@ app = FastAPI(
     redoc_url="/redoc" if settings.environment != "production" else None,
 )
 
-# CORS setup
+# CORS setup: allows explicit origins, local development, and Vercel deployments (*.vercel.app)
 allowed_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origin_regex=r"^(https?://(localhost|127\.0\.0\.1)(:\d+)?|https://.*\.vercel\.app)$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
