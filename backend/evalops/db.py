@@ -7,21 +7,60 @@ from .config import settings
 logger = logging.getLogger("evalops.db")
 
 def get_database_url() -> str:
-    """Normalize database URL for SQLAlchemy 2.0 with psycopg (v3) or psycopg2."""
+    """Normalize database URL for SQLAlchemy 2.0 with the best available PostgreSQL driver."""
     url = settings.database_url
-    if url.startswith("postgres://") or (url.startswith("postgresql://") and not url.startswith("postgresql+")):
-        remainder = url[len("postgres://"):] if url.startswith("postgres://") else url[len("postgresql://"):]
+    if not (url.startswith("postgres://") or url.startswith("postgresql://") or url.startswith("postgresql+")):
+        return url
+
+    # Split scheme from connection parameters
+    if "://" in url:
+        original_scheme, remainder = url.split("://", 1)
+    else:
+        return url
+
+    # Check which driver is actually installed and functional
+    has_psycopg = False
+    try:
+        import psycopg  # noqa: F401
+        has_psycopg = True
+    except (ImportError, Exception):
+        pass
+
+    has_psycopg2 = False
+    if not has_psycopg:
         try:
-            import psycopg  # noqa: F401
-            driver = "postgresql+psycopg"
-        except ImportError:
-            try:
-                import psycopg2  # noqa: F401
-                driver = "postgresql+psycopg2"
-            except ImportError:
-                driver = "postgresql+psycopg"
-        return f"{driver}://{remainder}"
-    return url
+            import psycopg2  # noqa: F401
+            has_psycopg2 = True
+        except (ImportError, Exception):
+            pass
+
+    has_pg8000 = False
+    if not (has_psycopg or has_psycopg2):
+        try:
+            import pg8000  # noqa: F401
+            has_pg8000 = True
+        except (ImportError, Exception):
+            pass
+
+    # Select the optimal driver that is confirmed importable
+    if has_psycopg:
+        chosen_driver = "postgresql+psycopg"
+    elif has_psycopg2:
+        chosen_driver = "postgresql+psycopg2"
+    elif has_pg8000:
+        chosen_driver = "postgresql+pg8000"
+    else:
+        chosen_driver = "postgresql+psycopg"
+
+    # If user provided a specific valid driver scheme that works, respect it
+    if original_scheme == "postgresql+psycopg" and has_psycopg:
+        return url
+    if original_scheme == "postgresql+psycopg2" and has_psycopg2:
+        return url
+    if original_scheme == "postgresql+pg8000" and has_pg8000:
+        return url
+
+    return f"{chosen_driver}://{remainder}"
 
 db_url = get_database_url()
 is_serverless = bool(os.getenv("VERCEL")) or settings.environment == "production"
