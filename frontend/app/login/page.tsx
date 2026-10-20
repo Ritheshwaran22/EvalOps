@@ -29,9 +29,9 @@ function LoginForm() {
         credentials: 'include',
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(data.detail || 'Authentication failed. Please check your credentials.');
+        throw new Error((data && data.detail) || `Authentication failed (HTTP ${res.status}).`);
       }
 
       setSession(data.token, data.user);

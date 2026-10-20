@@ -46,13 +46,16 @@ app = FastAPI(
 
 # CORS setup: allows explicit origins, local development, and Vercel deployments (*.vercel.app)
 allowed_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+if "https://eval-ops-two.vercel.app" not in allowed_origins:
+    allowed_origins.append("https://eval-ops-two.vercel.app")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_origin_regex=r"^(https?://(localhost|127\.0\.0\.1)(:\d+)?|https://.*\.vercel\.app)$",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

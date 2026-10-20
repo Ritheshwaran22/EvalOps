@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     api_version: str = "v1"
     environment: str = "development"
     secret_key: str = "evalops-insecure-dev-secret-key-change-in-production-32b"
-    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://eval-ops-two.vercel.app"
     session_cookie_name: str = "evalops_session"
     session_cookie_secure: bool = False
     session_cookie_samesite: str = "lax"

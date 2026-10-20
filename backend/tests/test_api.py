@@ -111,3 +111,36 @@ def test_vercel_entrypoint_path_resolution():
     assert r_hdr.status_code == 200
     assert r_hdr.json()["database"] == "connected"
 
+
+def test_cors_preflight_and_registration_from_frontend_origin():
+    # 1. OPTIONS preflight from https://eval-ops-two.vercel.app to /api/v1/auth/register
+    opts = client.options(
+        "/api/v1/auth/register",
+        headers={
+            "Origin": "https://eval-ops-two.vercel.app",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Content-Type, Authorization",
+        },
+    )
+    assert opts.status_code == 200
+    assert opts.headers.get("access-control-allow-origin") == "https://eval-ops-two.vercel.app"
+    assert opts.headers.get("access-control-allow-credentials") == "true"
+    assert "POST" in opts.headers.get("access-control-allow-methods", "")
+
+    # 2. Registration POST request from https://eval-ops-two.vercel.app
+    reg = client.post(
+        "/api/v1/auth/register",
+        headers={"Origin": "https://eval-ops-two.vercel.app"},
+        json={
+            "email": "cors_test_user@example.com",
+            "password": "Password123!",
+            "full_name": "CORS Tester",
+        },
+    )
+    assert reg.status_code == 201
+    assert reg.headers.get("access-control-allow-origin") == "https://eval-ops-two.vercel.app"
+    data = reg.json()
+    assert "token" in data
+    assert data["user"]["email"] == "cors_test_user@example.com"
+
+

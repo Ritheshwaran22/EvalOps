@@ -34,9 +34,9 @@ export default function RegisterPage() {
         credentials: 'include',
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(data.detail || 'Registration failed. Please check your information.');
+        throw new Error((data && data.detail) || `Registration failed (HTTP ${res.status}).`);
       }
 
       setSession(data.token, data.user);

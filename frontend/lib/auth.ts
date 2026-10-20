@@ -1,9 +1,22 @@
 'use client';
 
-export const API_BASE =
-  typeof window !== 'undefined'
-    ? process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.hostname}:8000/api/v1`
-    : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+function resolveApiBase(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (envUrl) {
+    return envUrl.replace(/\/+$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocalhost) {
+      return `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
+    }
+    // In production, fallback to relative path /api/v1 (avoids broken :8000 port connection attempts)
+    return '/api/v1';
+  }
+  return 'http://localhost:8000/api/v1';
+}
+
+export const API_BASE = resolveApiBase();
 
 export type User = {
   id: number;
