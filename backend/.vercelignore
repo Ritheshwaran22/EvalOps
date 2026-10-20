@@ -9,3 +9,5 @@ tests/
 *.sqlite
 *.sqlite3
 evalops.egg-info/
+build/
+dist/

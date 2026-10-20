@@ -8,9 +8,18 @@ version = "0.1.0"
 description = "Production-oriented LLM evaluation and regression gate platform"
 requires-python = ">=3.11"
 dependencies = [
-  "fastapi>=0.110,<1.0", "uvicorn[standard]>=0.27", "sqlalchemy>=2.0,<3.0",
-  "pydantic>=2.6,<3.0", "pydantic-settings>=2.2", "PyYAML>=6.0", "jsonschema>=4.21", "alembic>=1.13",
-  "bcrypt>=4.0", "cryptography>=42.0"
+  "fastapi>=0.110,<1.0",
+  "uvicorn[standard]>=0.27",
+  "sqlalchemy>=2.0,<3.0",
+  "pydantic>=2.6,<3.0",
+  "pydantic-settings>=2.2",
+  "PyYAML>=6.0",
+  "jsonschema>=4.21",
+  "alembic>=1.13",
+  "bcrypt>=4.0",
+  "cryptography>=42.0",
+  "psycopg[binary]>=3.1",
+  "psycopg2-binary>=2.9.9",
 ]
 
 [project.optional-dependencies]

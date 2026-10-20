@@ -17,3 +17,6 @@ coverage.xml
 htmlcov/
 evalops-report.json
 test_evalops.db
+build/
+dist/
+*.egg-info/

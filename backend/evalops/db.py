@@ -7,12 +7,20 @@ from .config import settings
 logger = logging.getLogger("evalops.db")
 
 def get_database_url() -> str:
-    """Normalize database URL for SQLAlchemy 2.0 with psycopg v3."""
+    """Normalize database URL for SQLAlchemy 2.0 with psycopg (v3) or psycopg2."""
     url = settings.database_url
-    if url.startswith("postgres://"):
-        return "postgresql+psycopg://" + url[len("postgres://"):]
-    if url.startswith("postgresql://") and not url.startswith("postgresql+"):
-        return "postgresql+psycopg://" + url[len("postgresql://"):]
+    if url.startswith("postgres://") or (url.startswith("postgresql://") and not url.startswith("postgresql+")):
+        remainder = url[len("postgres://"):] if url.startswith("postgres://") else url[len("postgresql://"):]
+        try:
+            import psycopg  # noqa: F401
+            driver = "postgresql+psycopg"
+        except ImportError:
+            try:
+                import psycopg2  # noqa: F401
+                driver = "postgresql+psycopg2"
+            except ImportError:
+                driver = "postgresql+psycopg"
+        return f"{driver}://{remainder}"
     return url
 
 db_url = get_database_url()
