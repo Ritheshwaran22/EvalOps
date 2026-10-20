@@ -1,9 +1,13 @@
 'use client';
 
 function resolveApiBase(): string {
-  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  let envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
   if (envUrl) {
-    return envUrl.replace(/\/+$/, '');
+    envUrl = envUrl.replace(/\/+$/, '');
+    if (!envUrl.endsWith('/api/v1')) {
+      envUrl = `${envUrl}/api/v1`;
+    }
+    return envUrl;
   }
   if (typeof window !== 'undefined') {
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';

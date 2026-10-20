@@ -113,7 +113,23 @@ def test_vercel_entrypoint_path_resolution():
 
 
 def test_cors_preflight_and_registration_from_frontend_origin():
-    # 1. OPTIONS preflight from https://eval-ops-two.vercel.app to /api/v1/auth/register
+    # 1. OPTIONS preflight from https://eval-ops-git-main-rithesh8.vercel.app to /api/v1/auth/register
+    opts_git = client.options(
+        "/api/v1/auth/register",
+        headers={
+            "Origin": "https://eval-ops-git-main-rithesh8.vercel.app",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Content-Type, Authorization",
+        },
+    )
+    assert opts_git.status_code == 200
+    assert opts_git.headers.get("access-control-allow-origin") == "https://eval-ops-git-main-rithesh8.vercel.app"
+    assert opts_git.headers.get("access-control-allow-credentials") == "true"
+    allowed_methods = opts_git.headers.get("access-control-allow-methods", "")
+    assert "POST" in allowed_methods or allowed_methods == "*"
+    assert "location" not in opts_git.headers  # Must NEVER redirect!
+
+    # 2. OPTIONS preflight from https://eval-ops-two.vercel.app to /api/v1/auth/register
     opts = client.options(
         "/api/v1/auth/register",
         headers={
@@ -125,22 +141,35 @@ def test_cors_preflight_and_registration_from_frontend_origin():
     assert opts.status_code == 200
     assert opts.headers.get("access-control-allow-origin") == "https://eval-ops-two.vercel.app"
     assert opts.headers.get("access-control-allow-credentials") == "true"
-    assert "POST" in opts.headers.get("access-control-allow-methods", "")
+    assert "location" not in opts.headers  # Must NEVER redirect!
 
-    # 2. Registration POST request from https://eval-ops-two.vercel.app
+    # 3. Trailing slash check: should not redirect with 301/302/307/308
+    opts_slash = client.options(
+        "/api/v1/auth/register/",
+        headers={
+            "Origin": "https://eval-ops-git-main-rithesh8.vercel.app",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Content-Type, Authorization",
+        },
+    )
+    assert opts_slash.status_code in (200, 204)
+    assert "location" not in opts_slash.headers
+
+    # 4. Registration POST request from https://eval-ops-git-main-rithesh8.vercel.app
     reg = client.post(
         "/api/v1/auth/register",
-        headers={"Origin": "https://eval-ops-two.vercel.app"},
+        headers={"Origin": "https://eval-ops-git-main-rithesh8.vercel.app"},
         json={
-            "email": "cors_test_user@example.com",
+            "email": "git_main_tester@example.com",
             "password": "Password123!",
-            "full_name": "CORS Tester",
+            "full_name": "Git Main Tester",
         },
     )
     assert reg.status_code == 201
-    assert reg.headers.get("access-control-allow-origin") == "https://eval-ops-two.vercel.app"
+    assert reg.headers.get("access-control-allow-origin") == "https://eval-ops-git-main-rithesh8.vercel.app"
     data = reg.json()
     assert "token" in data
-    assert data["user"]["email"] == "cors_test_user@example.com"
+    assert data["user"]["email"] == "git_main_tester@example.com"
+
 
 

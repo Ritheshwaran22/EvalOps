@@ -42,24 +42,10 @@ app = FastAPI(
     description="Deterministic LLM evaluation, authentication, and regression gate API",
     docs_url="/docs",
     redoc_url="/redoc",
+    redirect_slashes=False,
 )
 
-# CORS setup: allows explicit origins, local development, and Vercel deployments (*.vercel.app)
-allowed_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
-if "https://eval-ops-two.vercel.app" not in allowed_origins:
-    allowed_origins.append("https://eval-ops-two.vercel.app")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_origin_regex=r"^(https?://(localhost|127\.0\.0\.1)(:\d+)?|https://.*\.vercel\.app)$",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-# Security Headers & Request Body Size Limit Middleware
+# Security Headers & Request Body Size Limit Middleware (runs inside CORS)
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
     # Enforce request body size limit (5MB max)
@@ -75,6 +61,30 @@ async def security_middleware(request: Request, call_next):
     if settings.session_cookie_secure:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
+
+# CORS setup: added last so it wraps as the outermost middleware, directly handling OPTIONS preflights
+allowed_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+for origin in [
+    "https://eval-ops-two.vercel.app",
+    "https://eval-ops-git-main-rithesh8.vercel.app",
+    "https://eval-ops-rithesh8.vercel.app",
+]:
+    if origin not in allowed_origins:
+        allowed_origins.append(origin)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"^(https?://(localhost|127\.0\.0\.1)(:\d+)?|https://.*\.vercel\.app)$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Direct fallback for non-CORS or manual OPTIONS requests
+@app.options("/{full_path:path}", include_in_schema=False)
+async def preflight_options_fallback(full_path: str):
+    return Response(status_code=204)
 
 
 # Global Exception Handler to avoid leaking internal stack traces in production
