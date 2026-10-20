@@ -33,32 +33,81 @@ def test_project_case_run_lifecycle():
 
 
 def test_root_and_health_endpoints():
+    # 1. Root returns service information
     r_root = client.get("/")
     assert r_root.status_code == 200
-    assert r_root.json()["status"] == "ok"
-    assert "health" in r_root.json()
+    root_json = r_root.json()
+    assert root_json["status"] == "ok"
+    assert root_json["service"] == "evalops-api"
+    assert root_json["health"] == "/api/v1/health"
+    assert root_json["docs"] == "/docs"
+    assert root_json["openapi"] == "/openapi.json"
+    assert "database" not in root_json
 
+    # 2. Health check runs actual health-check endpoint with database status
     r_health = client.get("/api/v1/health")
     assert r_health.status_code == 200
-    assert r_health.json()["status"] == "ok"
-    assert r_health.json()["database"] == "connected"
+    health_json = r_health.json()
+    assert health_json["status"] == "ok"
+    assert health_json["service"] == "evalops-api"
+    assert health_json["database"] == "connected"
+    assert "docs" not in health_json
+
+    # 3. OpenAPI schema endpoint
+    r_openapi = client.get("/openapi.json")
+    assert r_openapi.status_code == 200
+    openapi_json = r_openapi.json()
+    assert "openapi" in openapi_json
+    assert "/api/v1/health" in openapi_json["paths"]
+
+    # 4. Docs endpoint opens in production
+    r_docs = client.get("/docs")
+    assert r_docs.status_code == 200
+    assert "swagger-ui" in r_docs.text.lower() or "html" in r_docs.headers.get("content-type", "")
 
 
 def test_vercel_entrypoint_path_resolution():
     from api.index import app as vercel_app
     vercel_client = TestClient(vercel_app)
 
-    # 1. Direct hit to /api/index should resolve to root metadata
-    r1 = vercel_client.get("/api/index")
-    assert r1.status_code == 200
-    assert r1.json()["status"] == "ok"
+    # 1. Vercel rewrite with __vpath=/ (root)
+    r_root = vercel_client.get("/api/index?__vpath=/")
+    assert r_root.status_code == 200
+    root_data = r_root.json()
+    assert root_data["status"] == "ok"
+    assert root_data["health"] == "/api/v1/health"
+    assert "database" not in root_data
 
-    # 2. Vercel rewrite to /api/index with x-matched-path pointing to /api/v1/health
-    r2 = vercel_client.get("/api/index", headers={"x-matched-path": "/api/v1/health"})
-    assert r2.status_code == 200
-    assert r2.json()["status"] == "ok"
-    assert r2.json()["database"] == "connected"
+    # 2. Vercel rewrite with __vpath=/api/v1/health
+    r_health = vercel_client.get("/api/index?__vpath=/api/v1/health")
+    assert r_health.status_code == 200
+    health_data = r_health.json()
+    assert health_data["status"] == "ok"
+    assert health_data["database"] == "connected"
+    assert "docs" not in health_data
 
-    # 3. Vercel rewrite to /api/index with x-matched-path pointing to /openapi.json
-    r3 = vercel_client.get("/api/index", headers={"x-matched-path": "/openapi.json"})
-    assert r3.status_code == 200
+    # 3. Vercel rewrite with __vpath=/openapi.json
+    r_openapi = vercel_client.get("/api/index?__vpath=/openapi.json")
+    assert r_openapi.status_code == 200
+    assert "openapi" in r_openapi.json()
+
+    # 4. Vercel rewrite with __vpath=/docs
+    r_docs = vercel_client.get("/api/index?__vpath=/docs")
+    assert r_docs.status_code == 200
+
+    # 5. Vercel rewrite with __vpath and additional query parameters
+    r_runs = vercel_client.get("/api/index?__vpath=/api/v1/runs&limit=5")
+    # Requires authentication, so it should return 401 Unauthorized, NOT 404 or root
+    assert r_runs.status_code == 401
+    assert r_runs.json()["detail"] == "Authentication required"
+
+    # 6. Direct invocation to /api/index defaults to root
+    r_direct = vercel_client.get("/api/index")
+    assert r_direct.status_code == 200
+    assert r_direct.json()["health"] == "/api/v1/health"
+
+    # 7. Fallback header support (e.g. x-matched-path or x-forwarded-path)
+    r_hdr = vercel_client.get("/api/index", headers={"x-forwarded-path": "/api/v1/health"})
+    assert r_hdr.status_code == 200
+    assert r_hdr.json()["database"] == "connected"
+

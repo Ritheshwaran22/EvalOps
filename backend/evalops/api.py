@@ -40,8 +40,8 @@ app = FastAPI(
     title=settings.api_title,
     version="1.0.0",
     description="Deterministic LLM evaluation, authentication, and regression gate API",
-    docs_url="/docs" if settings.environment != "production" else None,
-    redoc_url="/redoc" if settings.environment != "production" else None,
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 # CORS setup: allows explicit origins, local development, and Vercel deployments (*.vercel.app)
@@ -188,7 +188,6 @@ def _run(db: Session, run_id: int, user: m.User) -> m.EvaluationRun:
 # -------------------------------------------------------------
 # Public & Health Endpoints
 # -------------------------------------------------------------
-@app.get("/api/index", include_in_schema=False)
 @app.get("/")
 def root():
     return {
@@ -197,7 +196,7 @@ def root():
         "version": app.version,
         "environment": settings.environment,
         "health": "/api/v1/health",
-        "docs": "/docs" if settings.environment != "production" else None,
+        "docs": "/docs",
         "openapi": "/openapi.json",
     }
 
