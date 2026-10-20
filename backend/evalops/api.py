@@ -10,7 +10,7 @@ from fastapi import FastAPI, Depends, HTTPException, Response, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, text
 
 from .db import Base, engine, get_db
 from . import models as m, schemas as s
@@ -188,13 +188,33 @@ def _run(db: Session, run_id: int, user: m.User) -> m.EvaluationRun:
 # -------------------------------------------------------------
 # Public & Health Endpoints
 # -------------------------------------------------------------
-@app.get("/api/v1/health")
-def health():
+@app.get("/api/index", include_in_schema=False)
+@app.get("/")
+def root():
     return {
         "status": "ok",
         "service": "evalops-api",
         "version": app.version,
         "environment": settings.environment,
+        "health": "/api/v1/health",
+        "docs": "/docs" if settings.environment != "production" else None,
+        "openapi": "/openapi.json",
+    }
+
+
+@app.get("/api/v1/health")
+def health(db: Session = Depends(get_db)):
+    db_status = "connected"
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as exc:
+        db_status = f"error: {str(exc)}"
+    return {
+        "status": "ok",
+        "service": "evalops-api",
+        "version": app.version,
+        "environment": settings.environment,
+        "database": db_status,
     }
 
 
