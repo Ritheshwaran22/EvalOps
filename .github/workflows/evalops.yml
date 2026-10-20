@@ -1,0 +1,37 @@
+name: EvalOps evaluation gate
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+permissions:
+  contents: read
+jobs:
+  deterministic-evaluation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Install backend and test dependencies
+        working-directory: backend
+        run: python -m pip install -e '.[test]'
+      - name: Run automated tests
+        working-directory: backend
+        run: pytest -q
+      - name: Validate example configuration
+        working-directory: backend
+        run: python -m evalops.cli validate-config --project-config ../examples/evalops.yaml
+      - name: Run deterministic evaluation gate
+        working-directory: backend
+        run: python -m evalops.cli evaluate --project-config ../examples/evalops.yaml --output-json ../evalops-report.json --github-summary
+      - name: Upload evaluation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evalops-report
+          path: evalops-report.json
+          if-no-files-found: ignore
